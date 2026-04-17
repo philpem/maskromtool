@@ -58,6 +58,11 @@ QImage RomBitItem::getImage(){
     return mrt->background.copy(bounding);
 }
 
+QImage RomBitItem::getImage(int w, int h) {
+    QRect bounding = QRect(qRound(x()) - w/2, qRound(y()) - h/2, w, h);
+    return mrt->background.copy(bounding);
+}
+
 qreal RomBitItem::getBitSize(){
     return bitSize;
 }

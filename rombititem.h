@@ -70,6 +70,9 @@ public:
 
     //Returns an image of the bit.  Useful for export or post processing.
     QImage getImage();
+    // Returns exactly w×h pixels centered on the bit, cropped from the background.
+    // Unlike getImage(), this does not clamp to bitSize — safe for large template crops.
+    QImage getImage(int w, int h);
 
     // NCC quality overlay — set by RomRuleTemplate after each DRC run.
     // score < 0 means not yet evaluated (renders with default colours).

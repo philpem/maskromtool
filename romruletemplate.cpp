@@ -36,9 +36,10 @@ void RomRuleTemplate::evaluate(MaskRomTool *mrt) {
                 RomBitItem *next = bit->nexttoright;
                 bool rightVal = next ? next->bitValue() : bit->bitValue();
                 int key = RomBitTemplate::makeKey(leftVal, bit->bitValue(), rightVal);
+                int r = RomBitTemplate::SEARCH_RADIUS;
                 tasks.append({ bit, bit->pos(), bit->row, bit->col,
                                 bit->bitValue(), key,
-                                tmpl.paddedCrop(bit->getImage()),
+                                bit->getImage(tmpl.templateW() + 2*r, tmpl.templateH() + 2*r),
                                 tmpl.hasTemplate(key) });
             }
             prev = bit;

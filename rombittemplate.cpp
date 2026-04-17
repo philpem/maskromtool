@@ -160,8 +160,14 @@ void RomBitTemplate::build(MaskRomTool *mrt) {
         th = qMax(1, (int)qRound(qAbs(sampRect.height())));
     }
 
-    // === Pass 1: accumulate at nominal position, collect raw images for pass 2 ===
-    struct Sample { int key; QImage raw; };
+    int r = SEARCH_RADIUS;
+    int pw = tw + 2 * r;
+    int ph = th + 2 * r;
+
+    // === Pass 1: accumulate at nominal position, collect padded images for pass 2 ===
+    // getImage(pw, ph) fetches exactly the right size from the background, so no
+    // black-fill artifacts occur regardless of how large tw/th are.
+    struct Sample { int key; QImage padded; };
     QVector<Sample> samples;
     QVector<QVector<float>> accum(8);
 
@@ -178,9 +184,10 @@ void RomBitTemplate::build(MaskRomTool *mrt) {
                 bool rightVal = next ? next->bitValue() : bit->bitValue();
                 int key = makeKey(leftVal, bit->bitValue(), rightVal);
 
-                QImage raw = bit->getImage();
-                if(raw.isNull()) { prev = bit; bit = bit->nexttoright; continue; }
-                QImage gray = sobelMag(baseCrop(raw).convertToFormat(QImage::Format_Grayscale8));
+                QImage padded = bit->getImage(pw, ph);
+                if(padded.isNull()) { prev = bit; bit = bit->nexttoright; continue; }
+                // Center tw×th region of the padded image is the nominal crop.
+                QImage gray = sobelMag(padded.copy(r, r, tw, th).convertToFormat(QImage::Format_Grayscale8));
                 if(gray.isNull()) { prev = bit; bit = bit->nexttoright; continue; }
 
                 if(accum[key].isEmpty()) accum[key].fill(0.0f, tw * th);
@@ -191,7 +198,7 @@ void RomBitTemplate::build(MaskRomTool *mrt) {
                 }
                 counts[key]++;
                 totalFixed++;
-                samples.append({key, raw});
+                samples.append({key, padded});
             }
             prev = bit;
             bit  = bit->nexttoright;
@@ -209,7 +216,6 @@ void RomBitTemplate::build(MaskRomTool *mrt) {
         // === Pass 2: re-accumulate each sample at its best-aligned offset ===
         // For each sample find the offset (within ±SEARCH_RADIUS) that maximises NCC
         // against the rough template, then accumulate the aligned Sobel crop.
-        int r = SEARCH_RADIUS;
         QVector<QVector<float>> accum2(8);
         int counts2[8] = {};
 
@@ -217,8 +223,7 @@ void RomBitTemplate::build(MaskRomTool *mrt) {
             int key = s.key;
             if(!hasTemplate(key)) continue;
 
-            QImage paddedGray = paddedCrop(s.raw).convertToFormat(QImage::Format_Grayscale8);
-            QImage sobelPad   = sobelMag(paddedGray);
+            QImage sobelPad = sobelMag(s.padded.convertToFormat(QImage::Format_Grayscale8));
             if(sobelPad.width() < tw + 2*r || sobelPad.height() < th + 2*r) continue;
 
             // Find best offset vs rough template.

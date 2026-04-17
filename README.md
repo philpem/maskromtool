@@ -304,40 +304,63 @@ SHIFT ^Z    -- Redo
 
 Template matching lets maskromtool learn what zero and one bits look
 like from a small set of manually verified bits, then flag any bit
-that doesn't match expectations.
+that doesn't match expectations.  It uses Normalised Cross-Correlation
+(NCC) on Sobel edge images, keyed by the three-bit left/centre/right
+neighbour context, giving eight independent templates.
 
-**Building templates:**
-First, use `SHIFT+F` to force-correct a representative sample of bits
-across the ROM — aim for at least a few examples of each pattern.  The
-classifier uses an 8-entry table keyed by the left/center/right
-neighbour context (e.g. `0-0-0`, `0-1-0`, `1-0-1`, etc.), so try to
-cover a variety of neighbourhood combinations.
+**Step 1 — fix known-good bits:**
+Use `SHIFT+F` on bits you are confident about.  The classifier needs at
+least a few examples per context key (`0-0-0`, `0-1-0`, `1-0-1`, etc.),
+so try to cover a variety of neighbourhood combinations across the ROM.
 
-Once you have fixed bits, open `View` / `Template Images` and click
-**Build Templates** (or use `DRC` / `Build Templates from Fixed Bits`).
-The dialog shows the eight averaged Sobel-edge templates; each cell's
-tooltip reports how many training samples contributed to it.
+**Step 2 — build templates:**
+Open `View` / `Template Images`.  Adjust *Crop W* and *Crop H* if you
+want a specific pixel window (0 = auto from the sampler rectangle), set
+*Search radius* to tolerate small grid misalignment, then click
+**Build Templates**.  The dialog shows the eight averaged Sobel-edge
+templates; each cell's tooltip reports how many training samples
+contributed.  *Align samples during build* (on by default) runs a
+second alignment pass to sub-pixel-align each sample before averaging —
+disable it to speed up building on large ROMs with well-aligned grids.
 
-**Running the check:**
-Enable `DRC` / `Template Mismatch` and press `V` to run Design Rule
-Checks.  Two kinds of violation are reported:
+**Step 3 — run the check:**
+Click **Run Template DRC** in the Template Images dialog to evaluate
+only the template rule — it will auto-rebuild if settings have changed.
+Alternatively, enable `DRC` / `Template Mismatch` and press `V` to run
+it as part of the full DRC suite.  Two kinds of violation are reported:
 
 - **ERROR** — the template classifier disagrees with the bit's current
   value (the bit is probably wrong).
 - **WARNING** — the best NCC score is below the *Min NCC Score*
   threshold (the match is uncertain, even if the value agrees).
 
-Press `E` to jump to each violation, inspect with `View` / `Bit
-Preview`, and fix with `SHIFT+F`.  Re-run `V` after fixing to clear
+Press `E` to jump to each violation.  Use `View` / `Bit Preview` to
+inspect, and `SHIFT+F` to fix.  Re-run the check after fixing to clear
 resolved violations and find any remaining ones.
 
-**Tunable parameters** (all in the Template Images window):
+**Step 4 — review with the NCC overlay:**
+Toggle `View` / `NCC Quality Overlay` to colour every bit by its last
+NCC result: green = confident match, orange = uncertain, red = template
+disagrees.  Fixed bits always show their normal red/blue colour.
+
+**Step 5 — apply corrections in bulk:**
+If you trust the templates, use *Apply Corrections* in the Template
+Images dialog.  Set *Auto-flip confidence* to the minimum NCC score you
+require, then click the button.  Every unfixed bit whose template vote
+disagrees with its current value *and* whose NCC score meets the
+threshold will be force-flipped in one undo-able step.
+
+**Tunable parameters** (all in the Template Images dialog):
 
 | Control | Default | Effect |
 |---------|---------|--------|
-| Min NCC score | 0.60 | NCC below this triggers a WARNING |
-| Template scale | 4 | Multiplier on the sampler size for template storage resolution |
+| Crop W / H (px) | 0 (auto) | Source pixel crop size for each template; 0 uses the sampler rectangle size |
+| Align samples during build | on | Second alignment pass; improves templates on slightly misaligned grids |
+| Min NCC score | 0.60 | NCC below this triggers a WARNING violation |
 | Search radius (px) | 2 | Offset search ±N pixels around each bit centre to tolerate misalignment |
+| Auto-flip confidence | 0.85 | Minimum NCC score required for Apply Corrections to flip a bit |
+
+Settings are saved with the project JSON.
 
 When you first begin to mark bits, the software won't yet know the
 threshold between a one and a zero.  You can configure this with
