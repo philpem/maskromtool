@@ -65,6 +65,13 @@ void RomTemplateDialog::setTemplate(RomBitTemplate *tmpl) {
             .arg(status.join(" ")));
 }
 
+void RomTemplateDialog::loadSettings(int cropW, int cropH, int searchRadius, double nccThreshold) {
+    ui->templateWSpinBox->setValue(cropW);
+    ui->templateHSpinBox->setValue(cropH);
+    ui->searchRadiusSpinBox->setValue(searchRadius);
+    ui->nccThresholdSpinBox->setValue(nccThreshold);
+}
+
 void RomTemplateDialog::on_buildButton_clicked() {
     emit buildRequested();
 }

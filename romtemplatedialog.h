@@ -17,6 +17,7 @@ public:
     ~RomTemplateDialog();
 
     void setTemplate(RomBitTemplate *tmpl);
+    void loadSettings(int cropW, int cropH, int searchRadius, double nccThreshold);
 
 signals:
     void buildRequested();

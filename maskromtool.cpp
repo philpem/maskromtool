@@ -2136,6 +2136,10 @@ QJsonObject MaskRomTool::exportJSON(bool justselection){
         settings["autocomment"]=disDialog.autocomment;     //2025.05.07
         settings["showbits"]=disDialog.showbits;           //2025.05.07
         settings["showdamage"]=disDialog.showdamage;       //2025.05.07
+        settings["tmpl_cropw"]=RomBitTemplate::TEMPLATE_W;       //2026.04.17
+        settings["tmpl_croph"]=RomBitTemplate::TEMPLATE_H;       //2026.04.17
+        settings["tmpl_searchradius"]=RomBitTemplate::SEARCH_RADIUS; //2026.04.17
+        settings["tmpl_nccthreshold"]=RomRuleTemplate::LOW_NCC_THRESHOLD; //2026.04.17
         settings["yararule"]=solverDialog.yararule;        //2024.06.05
         root["settings"]=settings;
 
@@ -2322,6 +2326,13 @@ void MaskRomTool::importJSON(QJsonObject o){
     setSamplerSize(samplersize.toInt(0));
     QJsonValue aligner=settings.value("aligner");
     chooseAligner(aligner.toString("Default"));
+
+    // Template matcher settings (2026.04.17); defaults preserve previous behaviour.
+    templateDialog.loadSettings(
+        settings.value("tmpl_cropw").toInt(0),
+        settings.value("tmpl_croph").toInt(0),
+        settings.value("tmpl_searchradius").toInt(RomBitTemplate::SEARCH_RADIUS),
+        settings.value("tmpl_nccthreshold").toDouble(RomRuleTemplate::LOW_NCC_THRESHOLD));
 
 
     //Line items.
