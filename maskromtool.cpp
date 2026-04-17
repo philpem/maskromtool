@@ -105,8 +105,14 @@ MaskRomTool::MaskRomTool(QWidget *parent, bool opengl)
     //Some child dialogs need pointers back to the main project.
     connect(&templateDialog, &RomTemplateDialog::buildRequested,
             this, &MaskRomTool::on_actionBuildTemplates_triggered);
+    connect(&templateDialog, &RomTemplateDialog::runTemplateDRCRequested,
+            this, &MaskRomTool::on_templateDialog_runTemplateDRCRequested);
     connect(&templateDialog, &RomTemplateDialog::correctionsRequested,
             this, &MaskRomTool::on_templateDialog_correctionsRequested);
+    connect(&templateDialog, &RomTemplateDialog::alignEnabledChanged,
+            [](bool en){ RomBitTemplate::ALIGN_ENABLED = en; });
+    connect(&templateDialog, &RomTemplateDialog::settingsChanged,
+            [this]{ if(bitTemplate) bitTemplate->markDirty(); });
     disDialog.setMaskRomTool(this);
     violationDialog.setMaskRomTool(this);
     decodeDialog.setMaskRomTool(this);
@@ -2148,6 +2154,7 @@ QJsonObject MaskRomTool::exportJSON(bool justselection){
         settings["tmpl_croph"]=RomBitTemplate::TEMPLATE_H;       //2026.04.17
         settings["tmpl_searchradius"]=RomBitTemplate::SEARCH_RADIUS; //2026.04.17
         settings["tmpl_nccthreshold"]=RomRuleTemplate::LOW_NCC_THRESHOLD; //2026.04.17
+        settings["tmpl_align"]=RomBitTemplate::ALIGN_ENABLED;    //2026.04.17
         settings["yararule"]=solverDialog.yararule;        //2024.06.05
         root["settings"]=settings;
 
@@ -2340,7 +2347,8 @@ void MaskRomTool::importJSON(QJsonObject o){
         settings.value("tmpl_cropw").toInt(0),
         settings.value("tmpl_croph").toInt(0),
         settings.value("tmpl_searchradius").toInt(RomBitTemplate::SEARCH_RADIUS),
-        settings.value("tmpl_nccthreshold").toDouble(RomRuleTemplate::LOW_NCC_THRESHOLD));
+        settings.value("tmpl_nccthreshold").toDouble(RomRuleTemplate::LOW_NCC_THRESHOLD),
+        settings.value("tmpl_align").toBool(true));
 
 
     //Line items.
@@ -2537,6 +2545,28 @@ void MaskRomTool::on_actionBuildTemplates_triggered(){
     templateDialog.update();
     statusBar()->showMessage(
         QString("Built templates from %1 fixed bits.").arg(bitTemplate->fixedBitCount()));
+}
+
+void MaskRomTool::on_templateDialog_runTemplateDRCRequested(){
+    // Auto-rebuild if templates have never been built or settings have changed.
+    if(!bitTemplate || !bitTemplate->isBuilt() || bitTemplate->isDirty())
+        on_actionBuildTemplates_triggered();
+
+    if(!bitTemplate || !bitTemplate->isBuilt()) {
+        statusBar()->showMessage("Template DRC: could not build templates (no fixed bits?).");
+        return;
+    }
+
+    clearViolations();
+    removeDuplicates();
+    markBits(true);
+    statusBar()->showMessage(tr("Running Template DRC..."));
+    RomRuleTemplate templ;
+    templ.evaluate(this);
+    statusBar()->showMessage(tr("Template DRC: %1 violation%2.")
+        .arg(violations.count()).arg(violations.count() == 1 ? "" : "s"));
+    if(violations.count() > 0)
+        on_actionViolationsDialog_triggered();
 }
 
 void MaskRomTool::on_actionTemplateView_triggered(){

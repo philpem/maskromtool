@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>300</height>
+    <width>480</width>
+    <height>340</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -99,7 +99,6 @@
       <widget class="QLabel" name="templateHLabel">
        <property name="text"><string>  H (px, 0=auto):</string></property>
       </widget>
-
      </item>
      <item>
       <widget class="QSpinBox" name="templateHSpinBox">
@@ -111,6 +110,28 @@
      </item>
      <item>
       <spacer name="dimSpacer">
+       <property name="orientation"><enum>Qt::Horizontal</enum></property>
+       <property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="buildButton">
+       <property name="text"><string>Build Templates</string></property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="alignLayout">
+     <item>
+      <widget class="QCheckBox" name="alignCheckBox">
+       <property name="toolTip"><string>Run a second alignment pass during build to sub-pixel-align samples before averaging</string></property>
+       <property name="text"><string>Align samples during build</string></property>
+       <property name="checked"><bool>true</bool></property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="alignSpacer">
        <property name="orientation"><enum>Qt::Horizontal</enum></property>
        <property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property>
       </spacer>
@@ -151,8 +172,9 @@
       </spacer>
      </item>
      <item>
-      <widget class="QPushButton" name="buildButton">
-       <property name="text"><string>Build Templates</string></property>
+      <widget class="QPushButton" name="runTemplateDRCButton">
+       <property name="toolTip"><string>Run template mismatch DRC only; rebuilds templates first if settings have changed</string></property>
+       <property name="text"><string>Run Template DRC</string></property>
       </widget>
      </item>
     </layout>

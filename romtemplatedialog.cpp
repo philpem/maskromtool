@@ -65,15 +65,23 @@ void RomTemplateDialog::setTemplate(RomBitTemplate *tmpl) {
             .arg(status.join(" ")));
 }
 
-void RomTemplateDialog::loadSettings(int cropW, int cropH, int searchRadius, double nccThreshold) {
+void RomTemplateDialog::loadSettings(int cropW, int cropH, int searchRadius, double nccThreshold, bool alignEnabled) {
     ui->templateWSpinBox->setValue(cropW);
     ui->templateHSpinBox->setValue(cropH);
     ui->searchRadiusSpinBox->setValue(searchRadius);
     ui->nccThresholdSpinBox->setValue(nccThreshold);
+    RomBitTemplate::ALIGN_ENABLED = alignEnabled;
+    ui->alignCheckBox->blockSignals(true);
+    ui->alignCheckBox->setChecked(alignEnabled);
+    ui->alignCheckBox->blockSignals(false);
 }
 
 void RomTemplateDialog::on_buildButton_clicked() {
     emit buildRequested();
+}
+
+void RomTemplateDialog::on_runTemplateDRCButton_clicked() {
+    emit runTemplateDRCRequested();
 }
 
 void RomTemplateDialog::on_applyCorrectionsButton_clicked() {
@@ -86,12 +94,20 @@ void RomTemplateDialog::on_nccThresholdSpinBox_valueChanged(double value) {
 
 void RomTemplateDialog::on_searchRadiusSpinBox_valueChanged(int value) {
     RomBitTemplate::SEARCH_RADIUS = value;
+    emit settingsChanged();
 }
 
 void RomTemplateDialog::on_templateWSpinBox_valueChanged(int value) {
     RomBitTemplate::TEMPLATE_W = value;
+    emit settingsChanged();
 }
 
 void RomTemplateDialog::on_templateHSpinBox_valueChanged(int value) {
     RomBitTemplate::TEMPLATE_H = value;
+    emit settingsChanged();
+}
+
+void RomTemplateDialog::on_alignCheckBox_toggled(bool checked) {
+    emit alignEnabledChanged(checked);
+    emit settingsChanged();
 }

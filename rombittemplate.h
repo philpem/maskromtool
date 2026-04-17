@@ -17,11 +17,14 @@ class MaskRomTool;
 class RomBitTemplate {
 public:
     static const int MIN_SAMPLES = 3;
-    static int SEARCH_RADIUS;   // pixel search window around bit centre
-    static int TEMPLATE_W;     // crop width  in source pixels (0 = auto from sampler rect)
-    static int TEMPLATE_H;     // crop height in source pixels (0 = auto from sampler rect)
+    static int  SEARCH_RADIUS;   // pixel search window around bit centre
+    static int  TEMPLATE_W;     // crop width  in source pixels (0 = auto from sampler rect)
+    static int  TEMPLATE_H;     // crop height in source pixels (0 = auto from sampler rect)
+    static bool ALIGN_ENABLED;  // run second alignment pass during build
 
     void build(MaskRomTool *mrt);
+    void markDirty();
+    bool isDirty() const;
     bool isBuilt() const;
     bool hasTemplate(int key) const;
     static int makeKey(bool l, bool c, bool r);
@@ -56,6 +59,7 @@ private:
     int    counts[8] = {0,0,0,0,0,0,0,0};
     int    totalFixed = 0;
     bool   built = false;
+    bool   dirty = true;
     int    tw = 0, th = 0;   // crop/template dimensions in source image pixels
 
     // NCC assuming grayImg is already tw×th Format_Grayscale8 (Sobel applied internally).

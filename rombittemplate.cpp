@@ -25,9 +25,13 @@ static const std::vector<std::pair<int,int>> &sortedOffsets(int r) {
 
 static constexpr double EARLY_EXIT_NCC = 0.999;
 
-int RomBitTemplate::SEARCH_RADIUS   = 2;
-int RomBitTemplate::TEMPLATE_W      = 0;
-int RomBitTemplate::TEMPLATE_H      = 0;
+int  RomBitTemplate::SEARCH_RADIUS   = 2;
+int  RomBitTemplate::TEMPLATE_W      = 0;
+int  RomBitTemplate::TEMPLATE_H      = 0;
+bool RomBitTemplate::ALIGN_ENABLED   = true;
+
+void RomBitTemplate::markDirty() { dirty = true; }
+bool RomBitTemplate::isDirty()  const { return dirty; }
 
 int RomBitTemplate::makeKey(bool l, bool c, bool r) {
     return (l ? 4 : 0) | (c ? 2 : 0) | (r ? 1 : 0);
@@ -201,50 +205,53 @@ void RomBitTemplate::build(MaskRomTool *mrt) {
             templates[k] = accumToImage(accum[k], tw, th, counts[k]);
     }
 
-    // === Pass 2: re-accumulate each sample at its best-aligned offset ===
-    // For each sample find the offset (within ±SEARCH_RADIUS) that maximises NCC
-    // against the rough template, then accumulate the aligned Sobel crop.
-    int r = SEARCH_RADIUS;
-    QVector<QVector<float>> accum2(8);
-    int counts2[8] = {};
+    if(ALIGN_ENABLED) {
+        // === Pass 2: re-accumulate each sample at its best-aligned offset ===
+        // For each sample find the offset (within ±SEARCH_RADIUS) that maximises NCC
+        // against the rough template, then accumulate the aligned Sobel crop.
+        int r = SEARCH_RADIUS;
+        QVector<QVector<float>> accum2(8);
+        int counts2[8] = {};
 
-    for(const Sample &s : samples) {
-        int key = s.key;
-        if(!hasTemplate(key)) continue;
+        for(const Sample &s : samples) {
+            int key = s.key;
+            if(!hasTemplate(key)) continue;
 
-        QImage paddedGray = paddedCrop(s.raw).convertToFormat(QImage::Format_Grayscale8);
-        QImage sobelPad   = sobelMag(paddedGray);
-        if(sobelPad.width() < tw + 2*r || sobelPad.height() < th + 2*r) continue;
+            QImage paddedGray = paddedCrop(s.raw).convertToFormat(QImage::Format_Grayscale8);
+            QImage sobelPad   = sobelMag(paddedGray);
+            if(sobelPad.width() < tw + 2*r || sobelPad.height() < th + 2*r) continue;
 
-        // Find best offset vs rough template.
-        int bestDx = 0, bestDy = 0;
-        double bestScore = -2.0;
-        for(auto [dx, dy] : sortedOffsets(r)) {
-            double sc = nccGrayAt(key, sobelPad, r + dx, r + dy);
-            if(sc > bestScore) { bestScore = sc; bestDx = dx; bestDy = dy; }
-            if(bestScore >= EARLY_EXIT_NCC) break;
+            // Find best offset vs rough template.
+            int bestDx = 0, bestDy = 0;
+            double bestScore = -2.0;
+            for(auto [dx, dy] : sortedOffsets(r)) {
+                double sc = nccGrayAt(key, sobelPad, r + dx, r + dy);
+                if(sc > bestScore) { bestScore = sc; bestDx = dx; bestDy = dy; }
+                if(bestScore >= EARLY_EXIT_NCC) break;
+            }
+
+            // Accumulate the aligned Sobel crop.
+            if(accum2[key].isEmpty()) accum2[key].fill(0.0f, tw * th);
+            for(int y = 0; y < th; y++) {
+                const uchar *line = sobelPad.constScanLine(r + bestDy + y) + (r + bestDx);
+                for(int x = 0; x < tw; x++)
+                    accum2[key][y * tw + x] += line[x];
+            }
+            counts2[key]++;
         }
 
-        // Accumulate the aligned Sobel crop.
-        if(accum2[key].isEmpty()) accum2[key].fill(0.0f, tw * th);
-        for(int y = 0; y < th; y++) {
-            const uchar *line = sobelPad.constScanLine(r + bestDy + y) + (r + bestDx);
-            for(int x = 0; x < tw; x++)
-                accum2[key][y * tw + x] += line[x];
-        }
-        counts2[key]++;
-    }
-
-    // Replace rough templates with aligned averages where we have enough samples.
-    for(int k = 0; k < 8; k++) {
-        if(counts2[k] >= MIN_SAMPLES) {
-            templates[k] = accumToImage(accum2[k], tw, th, counts2[k]);
-            counts[k] = counts2[k];
+        // Replace rough templates with aligned averages where we have enough samples.
+        for(int k = 0; k < 8; k++) {
+            if(counts2[k] >= MIN_SAMPLES) {
+                templates[k] = accumToImage(accum2[k], tw, th, counts2[k]);
+                counts[k] = counts2[k];
+            }
         }
     }
 
     built = false;
     for(int k = 0; k < 8; k++) if(!templates[k].isNull()) { built = true; break; }
+    dirty = false;
 }
 
 // --- Exact-crop NCC (resizes img to match template) ---
