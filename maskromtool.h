@@ -329,6 +329,7 @@ private slots:
     void on_actionTemplateView_triggered();
     void on_actionBitPreview_triggered();
     void on_actionNccOverlay_triggered();
+    void on_templateDialog_correctionsRequested(double confidence);
 
 private:
     Ui::MaskRomTool *ui;

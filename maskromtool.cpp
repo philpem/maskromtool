@@ -105,6 +105,8 @@ MaskRomTool::MaskRomTool(QWidget *parent, bool opengl)
     //Some child dialogs need pointers back to the main project.
     connect(&templateDialog, &RomTemplateDialog::buildRequested,
             this, &MaskRomTool::on_actionBuildTemplates_triggered);
+    connect(&templateDialog, &RomTemplateDialog::correctionsRequested,
+            this, &MaskRomTool::on_templateDialog_correctionsRequested);
     disDialog.setMaskRomTool(this);
     violationDialog.setMaskRomTool(this);
     decodeDialog.setMaskRomTool(this);
@@ -2551,6 +2553,43 @@ void MaskRomTool::on_actionNccOverlay_triggered(){
     RomBitItem::nccOverlayEnabled = ui->actionNccOverlay->isChecked();
     for(auto *bit : bits)
         bit->refreshBrush();
+}
+
+void MaskRomTool::on_templateDialog_correctionsRequested(double confidence) {
+    // Count qualifying bits before touching anything.
+    int candidates = 0;
+    for(auto *bit : bits)
+        if(!bit->isFixed() && bit->nccDisagreement && bit->nccScore >= confidence)
+            candidates++;
+
+    if(candidates == 0) {
+        statusBar()->showMessage("Apply Corrections: no bits meet the confidence threshold.");
+        return;
+    }
+
+    // Snapshot state for one-step undo before making any changes.
+    markUndoPoint();
+
+    int count = 0;
+    for(auto *bit : bits) {
+        if(!bit->isFixed() && bit->nccDisagreement && bit->nccScore >= confidence) {
+            RomBitFix *fix = getBitFix(bit, true);
+            if(fix) {
+                // Template disagrees → correct value is opposite of current value.
+                fix->setValue(!bit->bitValue());
+                bit->setFix(fix);
+                // Clear disagreement flag so the overlay reflects the correction.
+                bit->nccDisagreement = false;
+                bit->refreshBrush();
+                count++;
+            }
+        }
+    }
+
+    remarkBits();
+    statusBar()->showMessage(
+        QString("Applied %1 template correction%2 (confidence ≥ %3).")
+            .arg(count).arg(count == 1 ? "" : "s").arg(confidence, 0, 'f', 2));
 }
 
 

@@ -76,6 +76,10 @@ void RomTemplateDialog::on_buildButton_clicked() {
     emit buildRequested();
 }
 
+void RomTemplateDialog::on_applyCorrectionsButton_clicked() {
+    emit correctionsRequested(ui->confidenceSpinBox->value());
+}
+
 void RomTemplateDialog::on_nccThresholdSpinBox_valueChanged(double value) {
     RomRuleTemplate::LOW_NCC_THRESHOLD = value;
 }

@@ -21,9 +21,11 @@ public:
 
 signals:
     void buildRequested();
+    void correctionsRequested(double confidence);
 
 private slots:
     void on_buildButton_clicked();
+    void on_applyCorrectionsButton_clicked();
     void on_nccThresholdSpinBox_valueChanged(double value);
     void on_searchRadiusSpinBox_valueChanged(int value);
     void on_templateWSpinBox_valueChanged(int value);
