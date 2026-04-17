@@ -172,6 +172,13 @@ void RomBitItem::setFix(RomBitFix* fix){
     setBrush();
 }
 
+void RomBitItem::clearFix() {
+    fixed = false;
+    nccScore = -1.0;
+    nccDisagreement = false;
+    setBrush();
+}
+
 bool RomBitItem::isFixed(){
     return fixed;
 }

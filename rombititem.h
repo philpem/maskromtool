@@ -40,6 +40,8 @@ public:
 
     //Applies a bit fix.
     void setFix(RomBitFix* fix);
+    //Removes a fix, reverting the bit to its sampled state.
+    void clearFix();
     //Is the bit fixed?  Useful for DRC checks.
     bool isFixed();
 

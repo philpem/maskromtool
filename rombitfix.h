@@ -29,6 +29,8 @@ public:
     //What's the last value of the bit?  Does *not* resample.
     bool bitValue();
     bool bitAmbiguous();
+    // The sampled value at the time the fix was created (never changes).
+    bool naturalValue();
 
     //Configuration.
     void setValue(bool value);
@@ -46,6 +48,7 @@ public:
     virtual int type() const override;
 private:
     bool value=false;
+    bool natural=false;
     bool ambiguous=false;
     void updateColor(); //Updates the color.
 };

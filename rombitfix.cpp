@@ -12,9 +12,11 @@ RomBitFix::RomBitFix(RomBitItem* bit){
     if(bit){ //Real fix.
         setPos(bit->pos());
         value=bit->bitValue();
+        natural=value;       // remember the sampled value for cycle logic
         setBitSize(bit->getBitSize());
     }else{
-        //We have to start somewhere.
+        //We have to start somewhere (JSON import — natural unknown, use value).
+        natural=value;
         setBitSize(10);
     }
     updateColor();
@@ -51,6 +53,10 @@ void RomBitFix::setBitSize(qreal size){
 //What value do we force the bit to?
 bool RomBitFix::bitValue(){
     return value;
+}
+
+bool RomBitFix::naturalValue(){
+    return natural;
 }
 
 //Is the bit damaged?

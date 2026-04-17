@@ -2,9 +2,12 @@
 #include "rombititem.h"
 #include "rombittemplate.h"
 #include "romruletemplate.h"
+#include "maskromtool.h"
 #include "maskromtool_autogen/include/ui_rombitpreviewdialog.h"
 
+#include <QPainter>
 #include <QPixmap>
+#include <QResizeEvent>
 
 RomBitPreviewDialog::RomBitPreviewDialog(QWidget *parent)
     : QDialog(parent), ui(new Ui::RomBitPreviewDialog) {
@@ -15,16 +18,16 @@ RomBitPreviewDialog::~RomBitPreviewDialog() {
     delete ui;
 }
 
-void RomBitPreviewDialog::showBit(RomBitItem *bit, RomBitTemplate *tmpl) {
+void RomBitPreviewDialog::showBit(RomBitItem *bit, RomBitTemplate *tmpl, MaskRomTool *mrt) {
     if(!bit) return;
 
-    QImage img = bit->getImage();
-    if(img.isNull()) return;
+    m_srcImage = bit->getImage();
+    if(m_srcImage.isNull()) return;
 
-    int sz = qMin(ui->previewLabel->width(), ui->previewLabel->height());
-    if(sz < 1) sz = 160;
-    QImage scaled = img.scaled(sz, sz, Qt::KeepAspectRatio, Qt::FastTransformation);
-    ui->previewLabel->setPixmap(QPixmap::fromImage(scaled));
+    m_mrt  = mrt;
+    m_tmpl = tmpl;
+
+    updatePreview();
 
     // --- Info label ---
     QStringList lines;
@@ -55,4 +58,45 @@ void RomBitPreviewDialog::showBit(RomBitItem *bit, RomBitTemplate *tmpl) {
     }
 
     ui->infoLabel->setText(lines.join("<br>"));
+}
+
+void RomBitPreviewDialog::updatePreview() {
+    if(m_srcImage.isNull()) return;
+
+    int sz = qMin(ui->previewLabel->width(), ui->previewLabel->height());
+    if(sz < 1) sz = 160;
+    QImage scaled = m_srcImage.scaled(sz, sz, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
+    // Read crop dimensions live so the box stays current as spinboxes change.
+    int tw = 0, th = 0;
+    if(m_tmpl && m_tmpl->isBuilt()) {
+        tw = m_tmpl->templateW();
+        th = m_tmpl->templateH();
+    } else if(RomBitTemplate::TEMPLATE_W > 0 && RomBitTemplate::TEMPLATE_H > 0) {
+        tw = RomBitTemplate::TEMPLATE_W;
+        th = RomBitTemplate::TEMPLATE_H;
+    } else if(m_mrt) {
+        QRectF sr = m_mrt->sampler->getRect(m_mrt);
+        tw = qMax(1, (int)qRound(qAbs(sr.width())));
+        th = qMax(1, (int)qRound(qAbs(sr.height())));
+    }
+
+    if(tw > 0 && th > 0) {
+        double scale = (double)scaled.width() / m_srcImage.width();
+        int cx = scaled.width()  / 2;
+        int cy = scaled.height() / 2;
+        int rw = qRound(tw * scale);
+        int rh = qRound(th * scale);
+        QPainter p(&scaled);
+        p.setPen(QPen(Qt::red, 1));
+        p.setBrush(Qt::NoBrush);
+        p.drawRect(cx - rw/2, cy - rh/2, rw, rh);
+    }
+
+    ui->previewLabel->setPixmap(QPixmap::fromImage(scaled));
+}
+
+void RomBitPreviewDialog::resizeEvent(QResizeEvent *event) {
+    QDialog::resizeEvent(event);
+    updatePreview();
 }

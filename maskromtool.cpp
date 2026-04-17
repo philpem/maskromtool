@@ -768,10 +768,16 @@ void MaskRomTool::keyPressEvent(QKeyEvent *event){
 
         break;
     case Qt::Key_F:
-        if(shift && !ctrl && !alt){ //Force a Bit
+        if(shift && !ctrl && !alt){ //Cycle bit fix: !natural → natural → unfixed.
             markUndoPoint();
+            RomBitItem* fbit=getBit(scene->scenepos);
+            RomBitFix*  ffix=fbit ? getBitFix(fbit, false) : nullptr;
+            QString msg;
+            if(!ffix)                                      msg=tr("Forced bit to opposite value.");
+            else if(ffix->bitValue()!=ffix->naturalValue()) msg=tr("Forced bit to natural value.");
+            else                                           msg=tr("Unforced bit.");
             fixBit(scene->scenepos);
-            statusBar()->showMessage(tr("Forced a bit."));
+            statusBar()->showMessage(msg);
         }
         break;
     case Qt::Key_V: //DRC
@@ -1664,13 +1670,26 @@ void MaskRomTool::fixBit(QPointF point){
     RomBitItem* bit=getBit(point);
     fixBit(bit);  //Not recursion!
 }
-//Fixes the bit itself.
+//Fixes the bit itself.  Cycles: unfixed → fix(!natural) → fix(natural) → unfixed.
 void MaskRomTool::fixBit(RomBitItem* bit){
     if(!bitsVisible) return;
-    RomBitFix* fix=getBitFix(bit, true);
-    if(fix){
-        fix->setValue(!fix->bitValue());
+    RomBitFix* fix=getBitFix(bit, false);
+    if(!fix){
+        // Unfixed → force to opposite of sampled value.
+        fix=getBitFix(bit, true);
+        if(fix){
+            fix->setValue(!fix->naturalValue());
+            bit->setFix(fix);
+        }
+    } else if(fix->bitValue() != fix->naturalValue()){
+        // Forced to opposite → force to same as natural (confirm the reading).
+        fix->setValue(fix->naturalValue());
         bit->setFix(fix);
+    } else {
+        // Forced to natural → unfix entirely.
+        removeItem(fix);
+        bit->clearFix();
+        remarkBits();
     }
     RomRuleViolation* violation=getBitViolation(bit);
     if(violation)

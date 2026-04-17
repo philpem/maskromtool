@@ -178,7 +178,7 @@ void RomScene::mouseMoveEvent(QGraphicsSceneMouseEvent *mouseEvent){
     if(maskRomTool->bitPreviewDialog.isVisible()){
         RomBitItem *bit = maskRomTool->getBit(scenepos);
         if(bit)
-            maskRomTool->bitPreviewDialog.showBit(bit, maskRomTool->bitTemplate);
+            maskRomTool->bitPreviewDialog.showBit(bit, maskRomTool->bitTemplate, maskRomTool);
     }
 }
 
