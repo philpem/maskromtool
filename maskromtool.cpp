@@ -40,11 +40,16 @@
 //Importers too, weird as they are.
 #include "romencoderdiff.h"
 
+//Template matching.
+#include "romtemplatedialog.h"
+
 //DRC rules.
 #include "romrulecount.h"
 #include "romruleduplicate.h"
 #include "romrulesanity.h"
 #include "romruleambiguous.h"
+#include "romruletemplate.h"
+#include "rombittemplate.h"
 
 //Qt libraries.
 #include <QFileDialog>
@@ -98,6 +103,8 @@ MaskRomTool::MaskRomTool(QWidget *parent, bool opengl)
     ui->statusbar->setFont(font);
 
     //Some child dialogs need pointers back to the main project.
+    connect(&templateDialog, &RomTemplateDialog::buildRequested,
+            this, &MaskRomTool::on_actionBuildTemplates_triggered);
     disDialog.setMaskRomTool(this);
     violationDialog.setMaskRomTool(this);
     decodeDialog.setMaskRomTool(this);
@@ -337,6 +344,7 @@ void MaskRomTool::chooseSampler(QString name){
             this->sampler=sampler;
             if(verbose)
                 qDebug()<<"Selected sampler"<<sampler->name;
+            setBitSize(bitSize);  // updates setRect() on all bits with new sampler shape
             remarkBits();
             return;
         }
@@ -908,6 +916,12 @@ bool MaskRomTool::runDRC(bool all){
     if(ui->drcAmbiguous->isChecked() || all){
         if(verbose) qDebug()<<"DRC Ambiguity";
         ambiguity.evaluate(this);
+    }
+
+    RomRuleTemplate templ;
+    if(ui->drcTemplate->isChecked() || all){
+        if(verbose) qDebug()<<"DRC Template";
+        templ.evaluate(this);
     }
 
     if(verbose) qDebug()<<"DRC done.";
@@ -2494,6 +2508,26 @@ void MaskRomTool::on_exportSolverSetBytes_triggered(){
 void MaskRomTool::on_actionDisassembly_triggered(){
     gatorom();
     disDialog.show();
+}
+
+void MaskRomTool::on_actionBuildTemplates_triggered(){
+    if(!bitTemplate) bitTemplate = new RomBitTemplate();
+    markBits(true);
+    bitTemplate->build(this);
+    templateDialog.setTemplate(bitTemplate);
+    templateDialog.update();
+    statusBar()->showMessage(
+        QString("Built templates from %1 fixed bits.").arg(bitTemplate->fixedBitCount()));
+}
+
+void MaskRomTool::on_actionTemplateView_triggered(){
+    templateDialog.show();
+    templateDialog.raise();
+}
+
+void MaskRomTool::on_actionBitPreview_triggered(){
+    bitPreviewDialog.show();
+    bitPreviewDialog.raise();
 }
 
 

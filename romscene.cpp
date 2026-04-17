@@ -174,6 +174,12 @@ void RomScene::mouseMoveEvent(QGraphicsSceneMouseEvent *mouseEvent){
      * to show our position and size.
      */
     updateStatus();
+
+    if(maskRomTool->bitPreviewDialog.isVisible()){
+        RomBitItem *bit = maskRomTool->getBit(scenepos);
+        if(bit)
+            maskRomTool->bitPreviewDialog.showBit(bit, maskRomTool->bitTemplate);
+    }
 }
 
 void RomScene::setRowAngle(qreal angle){

@@ -102,6 +102,9 @@
     <addaction name="separator"/>
     <addaction name="actionOpenGL"/>
     <addaction name="actionSecond"/>
+    <addaction name="separator"/>
+    <addaction name="actionTemplateView"/>
+    <addaction name="actionBitPreview"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -154,6 +157,9 @@
     <addaction name="drcAmbiguous"/>
     <addaction name="drcDuplicates"/>
     <addaction name="drcSanity"/>
+    <addaction name="drcTemplate"/>
+    <addaction name="separator"/>
+    <addaction name="actionBuildTemplates"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
@@ -544,6 +550,32 @@
   <action name="exportDamageBytes">
    <property name="text">
     <string>Damage Bytes</string>
+   </property>
+  </action>
+  <action name="drcTemplate">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Template Mismatch</string>
+   </property>
+  </action>
+  <action name="actionBuildTemplates">
+   <property name="text">
+    <string>Build Templates from Fixed Bits</string>
+   </property>
+  </action>
+  <action name="actionTemplateView">
+   <property name="text">
+    <string>Template Images</string>
+   </property>
+  </action>
+  <action name="actionBitPreview">
+   <property name="text">
+    <string>Bit Preview</string>
    </property>
   </action>
  </widget>

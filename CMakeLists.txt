@@ -142,6 +142,10 @@ set(MRT_SOURCES
         romrulesanity.h romrulesanity.cpp
         romdecoderpython.h romdecoderpython.cpp
         romruleambiguous.h romruleambiguous.cpp
+        romruletemplate.h romruletemplate.cpp
+        rombittemplate.h rombittemplate.cpp
+        romtemplatedialog.h romtemplatedialog.cpp romtemplatedialog.ui
+        rombitpreviewdialog.h rombitpreviewdialog.cpp rombitpreviewdialog.ui
         romruledialog.h romruledialog.cpp romruledialog.ui
         romdisdialog.h romdisdialog.cpp romdisdialog.ui
 # Sampler Strategies

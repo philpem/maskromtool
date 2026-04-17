@@ -21,6 +21,8 @@
 #include "romsolverdialog.h"
 #include "romsolutionsdialog.h"
 #include "romdisdialog.h"
+#include "romtemplatedialog.h"
+#include "rombitpreviewdialog.h"
 
 #include "gatorom.h"
 
@@ -33,6 +35,7 @@ class RomRuleViolation;
 class RomScene;
 class RomView;
 class RomBitFix;
+class RomBitTemplate;
 
 extern unsigned int verbose;
 
@@ -207,6 +210,9 @@ public:
     RomSolverDialog solverDialog;
     RomSolutionsDialog solutionsDialog;
     RomDisDialog disDialog;
+    RomTemplateDialog templateDialog;
+    RomBitPreviewDialog bitPreviewDialog;
+    RomBitTemplate *bitTemplate = nullptr;
 
     //Selectable Strategies
     RomAligner *aligner=0;
@@ -319,6 +325,9 @@ private slots:
     void on_exportDamageBytes_triggered();
 
     void on_actionBit_Images_triggered();
+    void on_actionBuildTemplates_triggered();
+    void on_actionTemplateView_triggered();
+    void on_actionBitPreview_triggered();
 
 private:
     Ui::MaskRomTool *ui;

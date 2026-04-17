@@ -300,6 +300,45 @@ SHIFT ^Z    -- Redo
 ^S          -- Save changes.
 ```
 
+## Template Matching
+
+Template matching lets maskromtool learn what zero and one bits look
+like from a small set of manually verified bits, then flag any bit
+that doesn't match expectations.
+
+**Building templates:**
+First, use `SHIFT+F` to force-correct a representative sample of bits
+across the ROM — aim for at least a few examples of each pattern.  The
+classifier uses an 8-entry table keyed by the left/center/right
+neighbour context (e.g. `0-0-0`, `0-1-0`, `1-0-1`, etc.), so try to
+cover a variety of neighbourhood combinations.
+
+Once you have fixed bits, open `View` / `Template Images` and click
+**Build Templates** (or use `DRC` / `Build Templates from Fixed Bits`).
+The dialog shows the eight averaged Sobel-edge templates; each cell's
+tooltip reports how many training samples contributed to it.
+
+**Running the check:**
+Enable `DRC` / `Template Mismatch` and press `V` to run Design Rule
+Checks.  Two kinds of violation are reported:
+
+- **ERROR** — the template classifier disagrees with the bit's current
+  value (the bit is probably wrong).
+- **WARNING** — the best NCC score is below the *Min NCC Score*
+  threshold (the match is uncertain, even if the value agrees).
+
+Press `E` to jump to each violation, inspect with `View` / `Bit
+Preview`, and fix with `SHIFT+F`.  Re-run `V` after fixing to clear
+resolved violations and find any remaining ones.
+
+**Tunable parameters** (all in the Template Images window):
+
+| Control | Default | Effect |
+|---------|---------|--------|
+| Min NCC score | 0.60 | NCC below this triggers a WARNING |
+| Template scale | 4 | Multiplier on the sampler size for template storage resolution |
+| Search radius (px) | 2 | Offset search ±N pixels around each bit centre to tolerate misalignment |
+
 When you first begin to mark bits, the software won't yet know the
 threshold between a one and a zero.  You can configure this with
 `View` / `Choose Bit Threshold`.
