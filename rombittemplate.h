@@ -41,6 +41,10 @@ public:
     double nccBest(int key, const QImage &paddedImg) const;
     bool   voteBest(int key, const QImage &paddedImg) const;
 
+    // Combined: computes Sobel once, returns vote and score for the current key.
+    struct VoteAndScore { bool vote; double score; };
+    VoteAndScore voteBestWithScore(int key, const QImage &paddedImg) const;
+
     QImage templateImage(int key) const;
     int    sampleCount(int key) const;
     int    fixedBitCount() const;
@@ -58,6 +62,8 @@ private:
     double nccGray(int key, const QImage &grayImg) const;
     // NCC between template[key] and a tw×th region of a pre-Sobelled image at offset (ox,oy).
     double nccGrayAt(int key, const QImage &sobelImg, int ox, int oy) const;
+    // Compute sobelMag once, run offset search for both key0 and key1.
+    std::pair<double,double> nccBestBoth(int key, const QImage &paddedImg) const;
     // Sobel edge-magnitude image (Format_Grayscale8 → Format_Grayscale8, normalised 0-255).
     static QImage sobelMag(const QImage &gray);
 };

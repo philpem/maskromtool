@@ -19,7 +19,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets LinguistTools Charts PrintSupport Core  Quick Qml)
+find_package(Qt6 REQUIRED COMPONENTS Widgets LinguistTools Charts PrintSupport Core Quick Qml Concurrent)
 
 
 # Neither PkgConfig nor YaraX are required.
@@ -176,7 +176,7 @@ qt_add_executable(maskromtool
 )
 qt_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 target_link_libraries(maskromtool PRIVATE Qt6::Widgets
-        Qt6::Charts Qt6::PrintSupport
+        Qt6::Charts Qt6::PrintSupport Qt6::Concurrent
         libgoodasm ${READLINE} ${YARAX_LINK_LIBRARIES})
 
 

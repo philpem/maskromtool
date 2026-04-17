@@ -2,6 +2,28 @@
 #include "maskromtool.h"
 
 #include <QtMath>
+#include <algorithm>
+#include <map>
+#include <utility>
+#include <vector>
+
+// Returns (2r+1)² offsets sorted by distance from origin, generated once per r.
+static const std::vector<std::pair<int,int>> &sortedOffsets(int r) {
+    static std::map<int, std::vector<std::pair<int,int>>> cache;
+    auto it = cache.find(r);
+    if(it != cache.end()) return it->second;
+    auto &v = cache[r];
+    for(int dy = -r; dy <= r; dy++)
+        for(int dx = -r; dx <= r; dx++)
+            v.push_back({dx, dy});
+    std::sort(v.begin(), v.end(), [](const std::pair<int,int> &a, const std::pair<int,int> &b){
+        return a.first*a.first + a.second*a.second
+             < b.first*b.first + b.second*b.second;
+    });
+    return v;
+}
+
+static constexpr double EARLY_EXIT_NCC = 0.999;
 
 int RomBitTemplate::SEARCH_RADIUS   = 2;
 int RomBitTemplate::TEMPLATE_W      = 0;
@@ -89,19 +111,19 @@ double RomBitTemplate::nccGray(int key, const QImage &grayImg) const {
     // Templates are stored as Sobel edge maps; apply the same to the query.
     I = sobelMag(I);
 
-    // Single-pass NCC: accumulate sumT, sumI, sumTT, sumII, sumTI then derive.
-    double sumT = 0.0, sumI = 0.0, sumTT = 0.0, sumII = 0.0, sumTI = 0.0;
+    int64_t sumT=0, sumI=0, sumTT=0, sumII=0, sumTI=0;
     for(int y = 0; y < h; y++) {
         const uchar *lt = T.constScanLine(y);
         const uchar *li = I.constScanLine(y);
         for(int x = 0; x < w; x++) {
-            double t = lt[x], i = li[x];
-            sumT += t; sumI += i; sumTT += t*t; sumII += i*i; sumTI += t*i;
+            int64_t t = lt[x], iv = li[x];
+            sumT += t; sumI += iv; sumTT += t*t; sumII += iv*iv; sumTI += t*iv;
         }
     }
     double n = w * h;
-    double num   = sumTI - sumT * sumI / n;
-    double denom = sqrt((sumTT - sumT*sumT/n) * (sumII - sumI*sumI/n));
+    double num   = (double)sumTI - (double)sumT*(double)sumI/n;
+    double denom = sqrt(((double)sumTT - (double)sumT*(double)sumT/n) *
+                        ((double)sumII - (double)sumI*(double)sumI/n));
     if(denom < 1e-10) return 0.0;
     return qBound(-1.0, num / denom, 1.0);
 }
@@ -197,18 +219,19 @@ bool RomBitTemplate::vote(int key, const QImage &img) const {
 double RomBitTemplate::nccGrayAt(int key, const QImage &sobelImg, int ox, int oy) const {
     const QImage &T = templates[key];
     int w = T.width(), h = T.height();
-    double sumT = 0, sumI = 0, sumTT = 0, sumII = 0, sumTI = 0;
+    int64_t sumT=0, sumI=0, sumTT=0, sumII=0, sumTI=0;
     for(int y = 0; y < h; y++) {
         const uchar *lt = T.constScanLine(y);
         const uchar *li = sobelImg.constScanLine(oy + y) + ox;
         for(int x = 0; x < w; x++) {
-            double t = lt[x], i = li[x];
-            sumT += t; sumI += i; sumTT += t*t; sumII += i*i; sumTI += t*i;
+            int64_t t = lt[x], iv = li[x];
+            sumT += t; sumI += iv; sumTT += t*t; sumII += iv*iv; sumTI += t*iv;
         }
     }
     double n = w * h;
-    double num   = sumTI - sumT * sumI / n;
-    double denom = sqrt((sumTT - sumT*sumT/n) * (sumII - sumI*sumI/n));
+    double num   = (double)sumTI - (double)sumT*(double)sumI/n;
+    double denom = sqrt(((double)sumTT - (double)sumT*(double)sumT/n) *
+                        ((double)sumII - (double)sumI*(double)sumI/n));
     if(denom < 1e-10) return 0.0;
     return qBound(-1.0, num / denom, 1.0);
 }
@@ -219,11 +242,10 @@ double RomBitTemplate::nccBest(int key, const QImage &paddedImg) const {
     // Sobel the full padded image once, then slide a tw×th window over it.
     QImage sobel = sobelMag(paddedImg.convertToFormat(QImage::Format_Grayscale8));
     double best = -1.0;
-    for(int dy = -r; dy <= r; dy++) {
-        for(int dx = -r; dx <= r; dx++) {
-            double s = nccGrayAt(key, sobel, r + dx, r + dy);
-            if(s > best) best = s;
-        }
+    for(auto [dx, dy] : sortedOffsets(r)) {
+        double s = nccGrayAt(key, sobel, r + dx, r + dy);
+        if(s > best) best = s;
+        if(best >= EARLY_EXIT_NCC) break;
     }
     return best;
 }
@@ -235,4 +257,33 @@ bool RomBitTemplate::voteBest(int key, const QImage &paddedImg) const {
     if(!has0) return true;
     if(!has1) return false;
     return nccBest(key1, paddedImg) > nccBest(key0, paddedImg);
+}
+
+// Compute Sobel once, run offset search for both key0 and key1.
+std::pair<double,double> RomBitTemplate::nccBestBoth(int key, const QImage &paddedImg) const {
+    int r = SEARCH_RADIUS;
+    QImage sobel = sobelMag(paddedImg.convertToFormat(QImage::Format_Grayscale8));
+    int key0 = key & ~2, key1 = key | 2;
+    double best0 = -1.0, best1 = -1.0;
+    for(auto [dx, dy] : sortedOffsets(r)) {
+        if(best0 < EARLY_EXIT_NCC)
+            best0 = qMax(best0, nccGrayAt(key0, sobel, r+dx, r+dy));
+        if(best1 < EARLY_EXIT_NCC)
+            best1 = qMax(best1, nccGrayAt(key1, sobel, r+dx, r+dy));
+        if(best0 >= EARLY_EXIT_NCC && best1 >= EARLY_EXIT_NCC) break;
+    }
+    return {best0, best1};
+}
+
+RomBitTemplate::VoteAndScore RomBitTemplate::voteBestWithScore(int key, const QImage &paddedImg) const {
+    int key0 = key & ~2, key1 = key | 2;
+    bool has0 = hasTemplate(key0), has1 = hasTemplate(key1);
+    if(!has0 && !has1) return { (bool)((key >> 1) & 1), 0.0 };
+    if(!has0) return { true,  hasTemplate(key1) ? nccBest(key1, paddedImg) : 0.0 };
+    if(!has1) return { false, hasTemplate(key0) ? nccBest(key0, paddedImg) : 0.0 };
+    auto [s0, s1] = nccBestBoth(key, paddedImg);
+    bool vote = s1 > s0;
+    // key is always key0 or key1 (center bit = current value); return winning side's score.
+    double score = vote ? s1 : s0;
+    return { vote, score };
 }
