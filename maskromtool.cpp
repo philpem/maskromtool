@@ -929,7 +929,15 @@ bool MaskRomTool::runDRC(bool all){
     RomRuleTemplate templ;
     if(ui->drcTemplate->isChecked() || all){
         if(verbose) qDebug()<<"DRC Template";
-        templ.evaluate(this);
+        if(!bitTemplate || !bitTemplate->isBuilt()) {
+            auto *v = new RomRuleViolation(QPointF(0,0),
+                "Template DRC skipped: no templates built",
+                "Open the Template Images dialog and click Build Templates before running DRC.");
+            v->error = false;
+            addViolation(v);
+        } else {
+            templ.evaluate(this);
+        }
     }
 
     if(verbose) qDebug()<<"DRC done.";

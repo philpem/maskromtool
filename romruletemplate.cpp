@@ -8,17 +8,11 @@
 double RomRuleTemplate::LOW_NCC_THRESHOLD = 0.6;
 
 void RomRuleTemplate::evaluate(MaskRomTool *mrt) {
-    RomBitTemplate tmpl;
-    tmpl.build(mrt);
-
-    if(!tmpl.isBuilt()) {
-        auto *v = new RomRuleViolation(QPointF(0,0),
-            "No fixed bits for templates",
-            "Fix at least a few known-good bits with Shift+F before running this rule.");
-        v->error = false;
-        mrt->addViolation(v);
+    // Use the already-built template from mrt; skip silently if none has been built.
+    if(!mrt->bitTemplate || !mrt->bitTemplate->isBuilt())
         return;
-    }
+
+    const RomBitTemplate &tmpl = *mrt->bitTemplate;
 
     // Phase 1 — collect tasks on the main thread (getImage reads mrt->background).
     struct BitTask {
