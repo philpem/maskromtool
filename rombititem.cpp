@@ -1,6 +1,7 @@
 #include "maskromtool.h"
 #include "rombitfix.h"
 #include "romlineitem.h"
+#include "romruletemplate.h"
 
 #include <QBrush>
 #include <QDebug>
@@ -66,10 +67,27 @@ QRgb RomBitItem::bitvalue_raw(MaskRomTool *mrt, QImage &bg){
     return mrt->sampler->bitvalue_raw(mrt, bg, pos());
 }
 
+bool RomBitItem::nccOverlayEnabled = false;
+
 void RomBitItem::setBrush(){
+    if(nccOverlayEnabled && !fixed && nccScore >= 0.0) {
+        QColor c;
+        if(nccDisagreement)
+            c = QColor(220, 50, 50);          // red   — template disagrees
+        else if(nccScore < RomRuleTemplate::LOW_NCC_THRESHOLD)
+            c = QColor(220, 140, 0);          // orange — weak match
+        else
+            c = QColor(50, 180, 50);          // green  — confident match
+        QGraphicsRectItem::setBrush(QBrush(c, Qt::SolidPattern));
+        return;
+    }
     static QBrush truebrush(Qt::GlobalColor::red, Qt::SolidPattern);
     static QBrush falsebrush(Qt::GlobalColor::blue, Qt::SolidPattern);
-    QGraphicsRectItem::setBrush(value?truebrush:falsebrush);
+    QGraphicsRectItem::setBrush(value ? truebrush : falsebrush);
+}
+
+void RomBitItem::refreshBrush() {
+    setBrush();
 }
 
 bool RomBitItem::bitvalue_sample(MaskRomTool *mrt, QImage &bg,

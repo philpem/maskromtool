@@ -965,6 +965,12 @@ void MaskRomTool::clearViolations(){
     foreach (RomRuleViolation* v, violations){
         removeItem(v);
     }
+    // Reset NCC scores so the overlay doesn't show stale data.
+    for(auto *bit : bits) {
+        bit->nccScore = -1.0;
+        bit->nccDisagreement = false;
+        bit->refreshBrush();
+    }
 }
 //Select the next violation.
 void MaskRomTool::nextViolation(){
@@ -2539,6 +2545,12 @@ void MaskRomTool::on_actionTemplateView_triggered(){
 void MaskRomTool::on_actionBitPreview_triggered(){
     bitPreviewDialog.show();
     bitPreviewDialog.raise();
+}
+
+void MaskRomTool::on_actionNccOverlay_triggered(){
+    RomBitItem::nccOverlayEnabled = ui->actionNccOverlay->isChecked();
+    for(auto *bit : bits)
+        bit->refreshBrush();
 }
 
 

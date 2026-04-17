@@ -71,6 +71,14 @@ public:
     //Returns an image of the bit.  Useful for export or post processing.
     QImage getImage();
 
+    // NCC quality overlay — set by RomRuleTemplate after each DRC run.
+    // score < 0 means not yet evaluated (renders with default colours).
+    double nccScore = -1.0;
+    bool   nccDisagreement = false;
+    void   refreshBrush();   // re-apply brush without resampling (e.g. after overlay toggle)
+
+    static bool nccOverlayEnabled;  // toggled by View → NCC Quality Overlay
+
 private:
     MaskRomTool *mrt=0;
     bool value=false;     //This is the value.

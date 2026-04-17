@@ -1,5 +1,6 @@
 #include "romruletemplate.h"
 #include "rombittemplate.h"
+#include "rombititem.h"
 #include "maskromtool.h"
 
 #include <QtConcurrent>
@@ -21,12 +22,13 @@ void RomRuleTemplate::evaluate(MaskRomTool *mrt) {
 
     // Phase 1 — collect tasks on the main thread (getImage reads mrt->background).
     struct BitTask {
-        QPointF pos;
-        long    row, col;
-        bool    currentValue;
-        int     key;
-        QImage  padded;
-        bool    hasTmpl;
+        RomBitItem *bit;       // kept for score writeback in Phase 3
+        QPointF     pos;
+        long        row, col;
+        bool        currentValue;
+        int         key;
+        QImage      padded;
+        bool        hasTmpl;
     };
     QVector<BitTask> tasks;
 
@@ -40,7 +42,7 @@ void RomRuleTemplate::evaluate(MaskRomTool *mrt) {
                 RomBitItem *next = bit->nexttoright;
                 bool rightVal = next ? next->bitValue() : bit->bitValue();
                 int key = RomBitTemplate::makeKey(leftVal, bit->bitValue(), rightVal);
-                tasks.append({ bit->pos(), bit->row, bit->col,
+                tasks.append({ bit, bit->pos(), bit->row, bit->col,
                                 bit->bitValue(), key,
                                 tmpl.paddedCrop(bit->getImage()),
                                 tmpl.hasTemplate(key) });
@@ -53,24 +55,30 @@ void RomRuleTemplate::evaluate(MaskRomTool *mrt) {
 
     // Phase 2 — parallel NCC evaluation (tmpl is read-only, no shared writes).
     struct ViolResult {
-        bool    disagree, poor;
-        QPointF pos;
-        long    row, col;
-        bool    currentValue, vote;
-        double  score;
+        RomBitItem *bit;
+        bool        disagree, poor;
+        QPointF     pos;
+        long        row, col;
+        bool        currentValue, vote;
+        double      score;
     };
 
     double threshold = LOW_NCC_THRESHOLD;
     QList<ViolResult> results = QtConcurrent::blockingMapped(tasks,
         [&tmpl, threshold](const BitTask &t) -> ViolResult {
             auto [vote, score] = tmpl.voteBestWithScore(t.key, t.padded);
-            return { vote != t.currentValue,
+            return { t.bit,
+                     vote != t.currentValue,
                      t.hasTmpl && score < threshold,
                      t.pos, t.row, t.col, t.currentValue, vote, score };
         });
 
-    // Phase 3 — add violations on the main thread.
+    // Phase 3 — write scores back and add violations on the main thread.
     for(const auto &r : results) {
+        r.bit->nccScore       = r.score;
+        r.bit->nccDisagreement = r.disagree;
+        r.bit->refreshBrush();
+
         if(r.disagree) {
             auto *v = new RomRuleViolation(r.pos,
                 QString("Template disagrees at %1,%2").arg(r.row).arg(r.col),
