@@ -2284,6 +2284,7 @@ void MaskRomTool::importJSONSelection(QJsonObject o){
     alignmentdirty=true;
     markingdirty=true;
     markBits(true);
+    markBitTable();
 }
 
 //The imports the state from JSON.
@@ -2417,6 +2418,7 @@ void MaskRomTool::importJSON(QJsonObject o){
     alignmentdirty=true;
     markingdirty=true;
     markBits(true);
+    markBitTable();
     setBitSize(bitSize);
 
     //And correct missing stats.
