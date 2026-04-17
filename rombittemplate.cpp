@@ -128,6 +128,17 @@ double RomBitTemplate::nccGray(int key, const QImage &grayImg) const {
     return qBound(-1.0, num / denom, 1.0);
 }
 
+// Average an accumulator into a Grayscale8 QImage.
+static QImage accumToImage(const QVector<float> &acc, int w, int h, int count) {
+    QImage img(w, h, QImage::Format_Grayscale8);
+    for(int y = 0; y < h; y++) {
+        uchar *line = img.scanLine(y);
+        for(int x = 0; x < w; x++)
+            line[x] = static_cast<uchar>(qBound(0.0f, acc[y*w+x] / count, 255.0f));
+    }
+    return img;
+}
+
 void RomBitTemplate::build(MaskRomTool *mrt) {
     for(int i = 0; i < 8; i++) { templates[i] = QImage(); counts[i] = 0; }
     totalFixed = 0;
@@ -145,6 +156,9 @@ void RomBitTemplate::build(MaskRomTool *mrt) {
         th = qMax(1, (int)qRound(qAbs(sampRect.height())));
     }
 
+    // === Pass 1: accumulate at nominal position, collect raw images for pass 2 ===
+    struct Sample { int key; QImage raw; };
+    QVector<Sample> samples;
     QVector<QVector<float>> accum(8);
 
     RomBitItem *rowfirst = mrt->markBitTable();
@@ -160,13 +174,12 @@ void RomBitTemplate::build(MaskRomTool *mrt) {
                 bool rightVal = next ? next->bitValue() : bit->bitValue();
                 int key = makeKey(leftVal, bit->bitValue(), rightVal);
 
-                QImage raw  = bit->getImage();
+                QImage raw = bit->getImage();
                 if(raw.isNull()) { prev = bit; bit = bit->nexttoright; continue; }
                 QImage gray = sobelMag(baseCrop(raw).convertToFormat(QImage::Format_Grayscale8));
                 if(gray.isNull()) { prev = bit; bit = bit->nexttoright; continue; }
 
-                if(accum[key].isEmpty())
-                    accum[key].fill(0.0f, tw * th);
+                if(accum[key].isEmpty()) accum[key].fill(0.0f, tw * th);
                 for(int y = 0; y < th; y++) {
                     const uchar *line = gray.constScanLine(y);
                     for(int x = 0; x < tw; x++)
@@ -174,6 +187,7 @@ void RomBitTemplate::build(MaskRomTool *mrt) {
                 }
                 counts[key]++;
                 totalFixed++;
+                samples.append({key, raw});
             }
             prev = bit;
             bit  = bit->nexttoright;
@@ -181,18 +195,54 @@ void RomBitTemplate::build(MaskRomTool *mrt) {
         rowfirst = rowfirst->nextrow;
     }
 
+    // Build rough templates from pass 1.
     for(int k = 0; k < 8; k++) {
-        if(counts[k] >= MIN_SAMPLES) {
-            QImage img(tw, th, QImage::Format_Grayscale8);
-            for(int y = 0; y < th; y++) {
-                uchar *line = img.scanLine(y);
-                for(int x = 0; x < tw; x++)
-                    line[x] = static_cast<uchar>(
-                        qBound(0.0f, accum[k][y * tw + x] / counts[k], 255.0f));
-            }
-            templates[k] = img;
+        if(counts[k] >= MIN_SAMPLES)
+            templates[k] = accumToImage(accum[k], tw, th, counts[k]);
+    }
+
+    // === Pass 2: re-accumulate each sample at its best-aligned offset ===
+    // For each sample find the offset (within ±SEARCH_RADIUS) that maximises NCC
+    // against the rough template, then accumulate the aligned Sobel crop.
+    int r = SEARCH_RADIUS;
+    QVector<QVector<float>> accum2(8);
+    int counts2[8] = {};
+
+    for(const Sample &s : samples) {
+        int key = s.key;
+        if(!hasTemplate(key)) continue;
+
+        QImage paddedGray = paddedCrop(s.raw).convertToFormat(QImage::Format_Grayscale8);
+        QImage sobelPad   = sobelMag(paddedGray);
+        if(sobelPad.width() < tw + 2*r || sobelPad.height() < th + 2*r) continue;
+
+        // Find best offset vs rough template.
+        int bestDx = 0, bestDy = 0;
+        double bestScore = -2.0;
+        for(auto [dx, dy] : sortedOffsets(r)) {
+            double sc = nccGrayAt(key, sobelPad, r + dx, r + dy);
+            if(sc > bestScore) { bestScore = sc; bestDx = dx; bestDy = dy; }
+            if(bestScore >= EARLY_EXIT_NCC) break;
+        }
+
+        // Accumulate the aligned Sobel crop.
+        if(accum2[key].isEmpty()) accum2[key].fill(0.0f, tw * th);
+        for(int y = 0; y < th; y++) {
+            const uchar *line = sobelPad.constScanLine(r + bestDy + y) + (r + bestDx);
+            for(int x = 0; x < tw; x++)
+                accum2[key][y * tw + x] += line[x];
+        }
+        counts2[key]++;
+    }
+
+    // Replace rough templates with aligned averages where we have enough samples.
+    for(int k = 0; k < 8; k++) {
+        if(counts2[k] >= MIN_SAMPLES) {
+            templates[k] = accumToImage(accum2[k], tw, th, counts2[k]);
+            counts[k] = counts2[k];
         }
     }
+
     built = (tw > 0 && th > 0);
 }
 
