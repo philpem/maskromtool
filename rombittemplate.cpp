@@ -243,7 +243,8 @@ void RomBitTemplate::build(MaskRomTool *mrt) {
         }
     }
 
-    built = (tw > 0 && th > 0);
+    built = false;
+    for(int k = 0; k < 8; k++) if(!templates[k].isNull()) { built = true; break; }
 }
 
 // --- Exact-crop NCC (resizes img to match template) ---
